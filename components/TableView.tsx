@@ -8,6 +8,8 @@ import { SortAscIcon } from './icons/SortAscIcon';
 import { SortDescIcon } from './icons/SortDescIcon';
 import ColumnSelector from './ColumnSelector';
 import { TrashIcon } from './icons/TrashIcon';
+import { FilterIcon } from './icons/FilterIcon';
+
 
 interface TableViewProps {
   fileData: FileData;
@@ -39,17 +41,13 @@ const TableView: React.FC<TableViewProps> = ({ fileData }) => {
   const [visibleHeaders, setVisibleHeaders] = useState<string[]>(fileData.headers);
 
   const [columnWidths, setColumnWidths] = useState<number[]>([]);
-  const tableWrapperRef = useRef<HTMLDivElement>(null);
-  const headerContainerRef = useRef<HTMLDivElement>(null);
-  const tableContainerRef = useRef<HTMLDivElement>(null); // This is now the BODY container
+  const tableContainerRef = useRef<HTMLDivElement>(null);
   const isResizing = useRef<{ index: number; startX: number; startWidth: number } | null>(null);
-  const dragGhostRef = useRef<HTMLElement | null>(null);
 
   // State for column drag-and-drop
   const [draggedColumnIndex, setDraggedColumnIndex] = useState<number | null>(null);
-  const [dropTarget, setDropTarget] = useState<{ index: number; side: 'left' | 'right'} | null>(null);
-  const [isOverHideZone, setIsOverHideZone] = useState<boolean>(false);
-  const [scrollbarWidth, setScrollbarWidth] = useState(0);
+  const [dropTargetIndex, setDropTargetIndex] = useState<number | null>(null);
+  const ghostNodeRef = useRef<HTMLElement | null>(null);
 
 
   useEffect(() => {
@@ -58,8 +56,8 @@ const TableView: React.FC<TableViewProps> = ({ fileData }) => {
 
 
   useEffect(() => {
-    if (visibleHeaders.length > 0 && tableWrapperRef.current) {
-      const containerWidth = tableWrapperRef.current.offsetWidth;
+    if (visibleHeaders.length > 0 && tableContainerRef.current) {
+      const containerWidth = tableContainerRef.current.offsetWidth;
       const totalMinWidth = visibleHeaders.length * MIN_COLUMN_WIDTH;
       
       if (totalMinWidth > containerWidth) {
@@ -82,31 +80,6 @@ const TableView: React.FC<TableViewProps> = ({ fileData }) => {
   useEffect(() => {
     setPageInput(String(currentPage));
   }, [currentPage]);
-
-  const handleBodyScroll = useCallback(() => {
-    if (headerContainerRef.current && tableContainerRef.current) {
-      headerContainerRef.current.scrollLeft = tableContainerRef.current.scrollLeft;
-    }
-  }, []);
-
-  useLayoutEffect(() => {
-    const bodyEl = tableContainerRef.current;
-    if (!bodyEl) return;
-
-    const observer = new ResizeObserver(() => {
-      setScrollbarWidth(bodyEl.offsetWidth - bodyEl.clientWidth);
-    });
-    observer.observe(bodyEl);
-    setScrollbarWidth(bodyEl.offsetWidth - bodyEl.clientWidth); // Initial calculation
-
-    bodyEl.addEventListener('scroll', handleBodyScroll);
-    return () => {
-      observer.disconnect();
-      if (bodyEl) {
-        bodyEl.removeEventListener('scroll', handleBodyScroll);
-      }
-    };
-  }, [handleBodyScroll]);
 
   const uniqueColumnValues = useMemo(() => {
     const uniqueVals: Record<string, Set<string | number | boolean | Date>> = {};
@@ -276,99 +249,81 @@ const TableView: React.FC<TableViewProps> = ({ fileData }) => {
         }
     };
 
-    // --- Column Drag and Drop Handlers ---
     const handleDragStart = (e: React.DragEvent, index: number) => {
-        // Find the parent cell to use for the drag image
-        // FIX: Cast the result of closest to HTMLElement to access offsetWidth and offsetHeight.
-        const cellElement = (e.currentTarget as HTMLElement).closest<HTMLElement>('.column-header-cell');
-        if (!cellElement) return; // Should not happen
-
         setDraggedColumnIndex(index);
         e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/plain', index.toString()); // Necessary for Firefox
-
-        // Create a custom drag image (ghost element) from the whole cell
-        const ghost = cellElement.cloneNode(true) as HTMLElement;
-        ghost.style.position = 'absolute';
-        ghost.style.top = '-9999px';
-        ghost.style.width = `${cellElement.offsetWidth}px`;
-        ghost.style.height = `${cellElement.offsetHeight}px`;
-        ghost.style.backgroundColor = 'white';
-        ghost.style.boxShadow = '0 8px 16px rgba(0, 0, 0, 0.2)';
-        ghost.style.opacity = '0.9';
-        ghost.style.pointerEvents = 'none'; // Prevent ghost from interfering with dragover events
-        document.body.appendChild(ghost);
-        dragGhostRef.current = ghost;
-
-        // Center the ghost image on the cursor
-        e.dataTransfer.setDragImage(ghost, cellElement.offsetWidth / 2, cellElement.offsetHeight / 2);
+        e.dataTransfer.setData('text/plain', index.toString());
+    
+        const dragNode = (e.currentTarget as HTMLElement).parentElement;
+        if (dragNode) {
+            const rect = dragNode.getBoundingClientRect();
+            const ghost = dragNode.cloneNode(true) as HTMLElement;
+    
+            ghost.style.position = 'absolute';
+            ghost.style.top = '-10000px';
+            ghost.style.left = '-10000px';
+            ghost.style.width = `${rect.width}px`;
+            ghost.style.height = `${rect.height}px`;
+            ghost.style.pointerEvents = 'none';
+            
+            // Apply a more prominent and stylish "lifted" effect.
+            ghost.style.backgroundColor = 'rgb(220 252 231)'; // Tailwind's green-100
+            ghost.style.border = '2px solid rgb(34 197 94)'; // Tailwind's green-500
+            ghost.style.borderRadius = '0.5rem'; // 8px
+            ghost.style.boxShadow = '0 25px 50px -12px rgb(0 0 0 / 0.25)'; // Enhanced shadow
+            ghost.style.transform = 'scale(1.05)';
+            ghost.style.opacity = '1';
+            
+            document.body.appendChild(ghost);
+            ghostNodeRef.current = ghost;
+    
+            const offsetX = e.clientX - rect.left;
+            const offsetY = e.clientY - rect.top;
+            
+            e.dataTransfer.setDragImage(ghost, offsetX, offsetY);
+        }
     };
 
     const handleDragOver = (e: React.DragEvent, targetIndex: number) => {
         e.preventDefault();
+        e.stopPropagation();
+        
         if (draggedColumnIndex === null || draggedColumnIndex === targetIndex) {
-            setDropTarget(null);
+            setDropTargetIndex(null);
             return;
         }
-
-        const targetElement = e.currentTarget as HTMLDivElement;
-        const rect = targetElement.getBoundingClientRect();
-        const midpoint = rect.left + rect.width / 2;
-
-        setDropTarget({
-            index: targetIndex,
-            side: e.clientX < midpoint ? 'left' : 'right'
-        });
-    };
-
-    const handleContainerDragOver = (e: React.DragEvent) => {
-      e.preventDefault();
-      if (draggedColumnIndex === null || !tableWrapperRef.current) return;
-  
-      const containerRect = tableWrapperRef.current.getBoundingClientRect();
-      const triggerZoneHeight = 30; // A smaller, less intrusive trigger zone
-      const isNowOverHideZone = e.clientY < containerRect.top + triggerZoneHeight;
-  
-      if (isNowOverHideZone !== isOverHideZone) {
-        setIsOverHideZone(isNowOverHideZone);
-      }
+        setDropTargetIndex(targetIndex);
     };
 
     const handleDragLeave = (e: React.DragEvent) => {
         const relatedTarget = e.relatedTarget as Node;
         if (!e.currentTarget.contains(relatedTarget)) {
-            setDropTarget(null);
+            setDropTargetIndex(null);
         }
     };
 
     const handleDragEnd = () => {
-        if (dragGhostRef.current) {
-            document.body.removeChild(dragGhostRef.current);
-            dragGhostRef.current = null;
+        if (ghostNodeRef.current) {
+            ghostNodeRef.current.remove();
+            ghostNodeRef.current = null;
         }
         setDraggedColumnIndex(null);
-        setDropTarget(null);
-        setIsOverHideZone(false);
+        setDropTargetIndex(null);
     };
 
     const handleDrop = (e: React.DragEvent) => {
         e.preventDefault();
-        if (draggedColumnIndex === null || dropTarget === null || isOverHideZone) {
+        e.stopPropagation();
+        if (draggedColumnIndex === null || dropTargetIndex === null) {
+            handleDragEnd();
             return;
         }
 
         const fromIndex = draggedColumnIndex;
-        let toIndex = dropTarget.index;
-
-        if (dropTarget.side === 'right') {
-            toIndex++;
-        }
-        
-        if (fromIndex < toIndex) {
-            toIndex--;
-        }
+        const toIndex = dropTargetIndex;
 
         if (fromIndex === toIndex) {
+            handleDragEnd();
             return;
         }
 
@@ -382,24 +337,18 @@ const TableView: React.FC<TableViewProps> = ({ fileData }) => {
 
         setVisibleHeaders(newHeaders);
         setColumnWidths(newWidths);
+        handleDragEnd();
     };
 
-    const handleDropOnHideZone = (e: React.DragEvent) => {
-      e.preventDefault();
-      if (draggedColumnIndex === null) return;
-
-      if (visibleHeaders.length <= 1) {
-          return;
+  const getColumnStyle = (index: number): React.CSSProperties => {
+      const style: React.CSSProperties = {
+          transition: 'background-color 0.2s ease-in-out',
+      };
+      
+      if (dropTargetIndex === index && draggedColumnIndex !== index) {
+          style.backgroundColor = 'rgba(147, 197, 253, 0.4)'; // Light blue background for the whole column (Tailwind's blue-300 with opacity)
       }
-
-      const newVisibleHeaders = [...visibleHeaders];
-      newVisibleHeaders.splice(draggedColumnIndex, 1);
-
-      const newWidths = [...columnWidths];
-      newWidths.splice(draggedColumnIndex, 1);
-
-      setVisibleHeaders(newVisibleHeaders);
-      setColumnWidths(newWidths);
+      return style;
   };
 
   const totalTableWidth = useMemo(() => columnWidths.reduce((sum, w) => sum + w, 0), [columnWidths]);
@@ -476,147 +425,128 @@ const TableView: React.FC<TableViewProps> = ({ fileData }) => {
         </div>
       </div>
       
-      {/* Table Structure */}
+      {/* Table Structure with a single scroll container */}
       <div 
-        ref={tableWrapperRef} 
-        className="flex-grow flex flex-col overflow-hidden relative" 
-        onDragOver={handleContainerDragOver}
-        onDragLeave={() => setIsOverHideZone(false)}
+        ref={tableContainerRef} 
+        className="flex-grow overflow-auto relative"
       >
-        {draggedColumnIndex !== null && (
-          <div
-            className={`absolute top-0 left-0 right-0 h-16 bg-red-100 bg-opacity-95 border-b-2 border-dashed border-red-500 z-50 flex items-center justify-center transition-opacity duration-200 ${isOverHideZone ? 'opacity-100' : 'opacity-0'}`}
-            onDrop={handleDropOnHideZone}
-            onDragOver={(e) => e.preventDefault()}
-          >
-            <TrashIcon className="h-6 w-6 text-red-600" />
-            <span className="ml-3 text-lg font-semibold text-red-700">Drop to hide column</span>
-          </div>
-        )}
-
-        {/* Header */}
-        <div ref={headerContainerRef} className="flex-shrink-0 bg-gray-100 relative">
-            {columnWidths.length > 0 && resizerPositions.map((left, i) => (
-                <div
-                    key={i}
-                    onMouseDown={(e) => handleResizeMouseDown(i, e)}
-                    className="absolute top-0 bottom-0 w-2.5 -translate-x-1/2 cursor-col-resize z-40"
-                    style={{ left: `${left}px`}}
-                />
-            ))}
-            <div className="text-sm" style={{ width: `${totalTableWidth}px` }}>
-                <div 
-                  className="flex border-b-2 border-gray-300 select-none"
-                  style={{ paddingRight: `${scrollbarWidth}px`}}
-                >
-                    {visibleHeaders.map((header, i) => (
-                        <div
-                            key={header}
-                            className={`font-semibold flex flex-col justify-start border-r border-gray-200 flex-shrink-0 relative transition-opacity column-header-cell ${draggedColumnIndex === i ? 'opacity-50' : ''}`}
-                            style={{ width: `${columnWidths[i]}px`}}
-                            onDragOver={(e) => handleDragOver(e, i)}
-                            onDragLeave={handleDragLeave}
-                            onDrop={handleDrop}
-                        >
-                            {dropTarget?.index === i && dropTarget.side === 'left' && (
-                               <div className="absolute top-0 bottom-0 left-[-2px] w-1 bg-blue-600 z-40" />
-                            )}
-
-                            <div className="flex items-stretch justify-between">
-                                <div
-                                    className="flex-grow p-3 flex items-center truncate cursor-default"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleSort(header);
-                                    }}
+        <div style={{ width: `${totalTableWidth}px`}} className="relative">
+            {/* Header */}
+            <div className="sticky top-0 z-20 bg-gray-100">
+                {columnWidths.length > 0 && resizerPositions.map((left, i) => (
+                    <div
+                        key={i}
+                        onMouseDown={(e) => handleResizeMouseDown(i, e)}
+                        className="absolute top-0 bottom-0 w-2.5 -translate-x-1/2 cursor-col-resize z-30"
+                        style={{ left: `${left}px`}}
+                    />
+                ))}
+                <div className="text-sm">
+                    <div 
+                      className="flex border-b-2 border-gray-300 select-none"
+                    >
+                        {visibleHeaders.map((header, i) => (
+                            <div
+                                key={header}
+                                className={`font-semibold flex flex-col justify-start border-r border-gray-200 flex-shrink-0 relative transition-opacity ${draggedColumnIndex === i ? 'opacity-50' : ''}`}
+                                style={{ width: `${columnWidths[i]}px`, ...getColumnStyle(i)}}
+                                onDragOver={(e) => handleDragOver(e, i)}
+                                onDragLeave={handleDragLeave}
+                                onDrop={handleDrop}
+                            >
+                                <div 
+                                    className="flex items-stretch justify-between group cursor-auto"
                                     draggable
                                     onDragStart={(e) => handleDragStart(e, i)}
                                     onDragEnd={handleDragEnd}
                                 >
-                                    <span className="truncate">{header}</span>
-                                    <span
-                                      className="ml-1 flex-shrink-0"
+                                    <div
+                                        className="flex-grow p-3 flex items-center truncate"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleSort(header);
+                                        }}
                                     >
-                                        {sortConfig?.key === header ? (
-                                            sortConfig.direction === 'asc' ? <SortAscIcon /> : <SortDescIcon />
-                                        ) : (
-                                            <SortIcon />
-                                        )}
-                                    </span>
+                                        <span className="truncate">{header}</span>
+                                        <span
+                                          className="ml-1 flex-shrink-0"
+                                        >
+                                            {sortConfig?.key === header ? (
+                                                sortConfig.direction === 'asc' ? <SortAscIcon /> : <SortDescIcon />
+                                            ) : (
+                                                <SortIcon />
+                                            )}
+                                        </span>
+                                    </div>
+                                    <div className="border-l border-gray-200 my-2"></div>
+                                    <FilterDropdown
+                                        header={header}
+                                        uniqueValues={uniqueColumnValues[header]}
+                                        filter={filters[header]}
+                                        onFilterChange={handleFilterChange}
+                                        onActivateInlineFilter={setInlineFilterHeader}
+                                        isOpen={activeFilterDropdown === header}
+                                        onToggle={() => setActiveFilterDropdown(prev => prev === header ? null : header)}
+                                        onClose={() => setActiveFilterDropdown(null)}
+                                    />
                                 </div>
-                                <div className="border-l border-gray-200 my-2"></div>
-                                <FilterDropdown
-                                    header={header}
-                                    uniqueValues={uniqueColumnValues[header]}
-                                    filter={filters[header]}
-                                    onFilterChange={handleFilterChange}
-                                    onActivateInlineFilter={setInlineFilterHeader}
-                                    isOpen={activeFilterDropdown === header}
-                                    onToggle={() => setActiveFilterDropdown(prev => prev === header ? null : header)}
-                                    onClose={() => setActiveFilterDropdown(null)}
-                                />
-                            </div>
 
-                            {isHeaderExpanded && (
-                                <div className="px-2 pb-2 h-10 flex items-center">
-                                    {(() => {
-                                        const isTextFilter = uniqueColumnValues[header].length > 50;
-                                        const filter = filters[header];
+                                {isHeaderExpanded && (
+                                    <div className="px-2 pb-2 h-10 flex items-center">
+                                        {(() => {
+                                            const isTextFilter = uniqueColumnValues[header].length > 50;
+                                            const filter = filters[header];
 
-                                        if (isTextFilter) {
+                                            if (isTextFilter) {
+                                                return (
+                                                    <input
+                                                        type="text"
+                                                        className="w-full h-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-normal"
+                                                        value={(filter as TextFilter)?.value || ''}
+                                                        onChange={(e) => {
+                                                            const value = e.target.value;
+                                                            handleFilterChange(header, value ? { type: 'text', value } : undefined);
+                                                        }}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter' || e.key === 'Escape') {
+                                                                e.currentTarget.blur();
+                                                                setInlineFilterHeader(null);
+                                                            }
+                                                        }}
+                                                        onBlur={() => setInlineFilterHeader(null)}
+                                                        onClick={e => e.stopPropagation()}
+                                                        autoFocus={inlineFilterHeader === header}
+                                                        placeholder="필터..."
+                                                    />
+                                                );
+                                            }
+
+                                            // Checkbox filter
+                                            const isFiltered = filter && filter.type === 'checkbox';
+                                            const selectedCount = isFiltered ? (filter as CheckboxFilter).selected.length : 0;
+                                            const isAllSelected = !isFiltered;
+                                            const displayText = isAllSelected ? '모두' : `${selectedCount}개 선택됨`;
+
                                             return (
-                                                <input
-                                                    type="text"
-                                                    className="w-full h-full px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm font-normal"
-                                                    value={(filter as TextFilter)?.value || ''}
-                                                    onChange={(e) => {
-                                                        const value = e.target.value;
-                                                        handleFilterChange(header, value ? { type: 'text', value } : undefined);
-                                                    }}
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === 'Enter' || e.key === 'Escape') {
-                                                            e.currentTarget.blur();
-                                                            setInlineFilterHeader(null);
-                                                        }
-                                                    }}
-                                                    onBlur={() => setInlineFilterHeader(null)}
-                                                    onClick={e => e.stopPropagation()}
-                                                    autoFocus={inlineFilterHeader === header}
-                                                    placeholder="필터..."
-                                                />
+                                                <div
+                                                    className="w-full h-full px-2 py-1 border border-gray-300 rounded-md text-sm font-normal bg-white flex items-center justify-between text-gray-700 cursor-pointer"
+                                                    onClick={() => setActiveFilterDropdown(header)}
+                                                >
+                                                    <span className="truncate">{displayText}</span>
+                                                    <SortDescIcon className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                                                </div>
                                             );
-                                        }
-
-                                        // Checkbox filter
-                                        const isFiltered = filter && filter.type === 'checkbox';
-                                        const selectedCount = isFiltered ? (filter as CheckboxFilter).selected.length : 0;
-                                        const isAllSelected = !isFiltered;
-                                        const displayText = isAllSelected ? '모두' : `${selectedCount}개 선택됨`;
-
-                                        return (
-                                            <div
-                                                className="w-full h-full px-2 py-1 border border-gray-300 rounded-md text-sm font-normal bg-white flex items-center justify-between text-gray-700 cursor-pointer"
-                                                onClick={() => setActiveFilterDropdown(header)}
-                                            >
-                                                <span className="truncate">{displayText}</span>
-                                                <SortDescIcon className="h-4 w-4 text-gray-500 flex-shrink-0" />
-                                            </div>
-                                        );
-                                    })()}
-                                </div>
-                            )}
-                            {dropTarget?.index === i && dropTarget.side === 'right' && (
-                               <div className="absolute top-0 bottom-0 right-[-2px] w-1 bg-blue-600 z-40" />
-                            )}
-                        </div>
-                    ))}
+                                        })()}
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
                 </div>
             </div>
-        </div>
 
-        {/* Body */}
-        <div ref={tableContainerRef} className="flex-grow overflow-auto">
-            <div className="text-sm" style={{ width: `${totalTableWidth}px`}}>
+            {/* Body */}
+            <div className="text-sm">
                 <div>
                     {paginatedData.map((row, rowIndex) => (
                         <div
@@ -629,8 +559,14 @@ const TableView: React.FC<TableViewProps> = ({ fileData }) => {
                                 const displayValue = cellValue instanceof Date
                                     ? formatDate(cellValue)
                                     : String(cellValue ?? '');
+                                const columnStyle = getColumnStyle(i);
+
                                 return (
-                                    <div key={header} className="p-3 border-r border-gray-200 truncate flex-shrink-0" style={{ width: `${columnWidths[i]}px`}}>
+                                    <div 
+                                        key={header} 
+                                        className="p-3 border-r border-gray-200 truncate flex-shrink-0" 
+                                        style={{ width: `${columnWidths[i]}px`, ...columnStyle }}
+                                    >
                                         {displayValue}
                                     </div>
                                 );

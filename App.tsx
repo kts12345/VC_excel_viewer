@@ -85,12 +85,17 @@ const App: React.FC = () => {
   const handleDragEnter = useCallback((event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     event.stopPropagation();
-    setIsDragging(true);
+    if (event.dataTransfer.types.includes('Files')) {
+      setIsDragging(true);
+    }
   }, []);
 
   const handleDragLeave = useCallback((event: DragEvent<HTMLDivElement>) => {
     event.preventDefault();
     event.stopPropagation();
+    if (event.currentTarget.contains(event.relatedTarget as Node)) {
+        return;
+    }
     setIsDragging(false);
   }, []);
 
