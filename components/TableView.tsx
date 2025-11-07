@@ -524,7 +524,7 @@ const TableView: React.FC<TableViewProps> = ({ fileData }) => {
 
                             <div className="flex items-stretch justify-between">
                                 <div
-                                    className="flex-grow p-3 flex items-center truncate cursor-move"
+                                    className="flex-grow p-3 flex items-center truncate cursor-default"
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         handleSort(header);
