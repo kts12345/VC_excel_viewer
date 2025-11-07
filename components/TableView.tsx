@@ -145,8 +145,29 @@ const TableView: React.FC<TableViewProps> = ({ fileData }) => {
         return true;
       });
     });
-  }, [fileData.data, filters]);
+    }, [fileData.data, filters]);
 
+    const uniqueValueCounts = useMemo(() => {
+        const uniqueVals: Record<string, Set<any>> = {};
+        fileData.headers.forEach(header => {
+            uniqueVals[header] = new Set();
+        });
+
+        filteredData.forEach(row => {
+            fileData.headers.forEach(header => {
+                const value = row[header];
+                if (value !== null && value !== undefined) {
+                    uniqueVals[header].add(value);
+                }
+            });
+        });
+        
+        const counts: Record<string, number> = {};
+        fileData.headers.forEach(header => {
+            counts[header] = uniqueVals[header].size;
+        });
+        return counts;
+    }, [filteredData, fileData.headers]);
 
   const sortedData = useMemo(() => {
     if (!sortConfig) return filteredData;
@@ -521,6 +542,7 @@ const TableView: React.FC<TableViewProps> = ({ fileData }) => {
             onColumnOrderChange={setColumnOrder}
             pinnedColumns={pinnedColumns}
             onPinnedColumnsChange={setPinnedColumns}
+            uniqueValueCounts={uniqueValueCounts}
           />
           <div className="flex items-center gap-2">
             <label htmlFor="rowsPerPage" className="text-gray-600">Rows:</label>

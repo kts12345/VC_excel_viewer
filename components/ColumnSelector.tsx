@@ -13,6 +13,7 @@ interface ColumnSelectorProps {
   onColumnOrderChange: (newOrder: string[]) => void;
   pinnedColumns: string[];
   onPinnedColumnsChange: (newPinned: string[]) => void;
+  uniqueValueCounts: Record<string, number>;
 }
 
 const ColumnSelector: React.FC<ColumnSelectorProps> = ({ 
@@ -22,7 +23,8 @@ const ColumnSelector: React.FC<ColumnSelectorProps> = ({
   columnOrder,
   onColumnOrderChange,
   pinnedColumns,
-  onPinnedColumnsChange
+  onPinnedColumnsChange,
+  uniqueValueCounts
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -221,7 +223,9 @@ const ColumnSelector: React.FC<ColumnSelectorProps> = ({
                       onChange={() => handleToggleVisibility(header)}
                       disabled={isDisabled}
                     />
-                    <span className="ml-2 text-gray-800 truncate">{header}</span>
+                    <span className="ml-2 text-gray-800 truncate">
+                      {header} ({uniqueValueCounts[header] ?? 0})
+                    </span>
                   </label>
                   <button 
                     title={isPinned ? '컬럼 고정 해제' : '컬럼 고정'}
