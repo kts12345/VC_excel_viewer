@@ -51,7 +51,7 @@ const ColumnSelector: React.FC<ColumnSelectorProps> = ({ allHeaders, visibleHead
       </button>
 
       {isOpen && (
-        <div className="absolute top-full right-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-xl z-20">
+        <div className="absolute top-full right-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-xl z-30">
           <div className="max-h-80 overflow-y-auto p-2 text-sm">
             {allHeaders.map((header) => {
               const isChecked = visibleHeaders.includes(header);
