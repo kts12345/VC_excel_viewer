@@ -1,0 +1,5 @@
+{
+  "name": "[base] Excel & CSV Data Viewer (v1)",
+  "description": "An interactive data viewer application that allows users to drag and drop Excel or CSV files, display the data in a paginated and filterable table, and manage multiple files within a resizable two-panel layout.",
+  "requestFramePermissions": []
+}
