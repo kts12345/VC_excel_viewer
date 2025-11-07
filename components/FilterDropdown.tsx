@@ -7,9 +7,7 @@ interface FilterDropdownProps {
   uniqueValues: (string | number | boolean | Date)[];
   filter: Filter | undefined;
   onFilterChange: (header: string, filter: Filter | undefined) => void;
-  onActivateInlineFilter: (header: string) => void;
   isOpen: boolean;
-  onToggle: () => void;
   onClose: () => void;
 }
 
@@ -25,40 +23,26 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
     uniqueValues, 
     filter, 
     onFilterChange, 
-    onActivateInlineFilter, 
     isOpen, 
-    onToggle, 
     onClose 
 }) => {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const scrollableContainerRef = useRef<HTMLDivElement>(null);
   const [isLeftAligned, setIsLeftAligned] = useState(false);
   
-  const isTextFilter = uniqueValues.length > 50;
-
-  const handleButtonClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (isTextFilter) {
-      onActivateInlineFilter(header);
-      return;
-    }
-
-    if (!isOpen && dropdownRef.current) {
-        const rect = dropdownRef.current.getBoundingClientRect();
+  useEffect(() => {
+    if (isOpen && dropdownRef.current) {
+        const rect = dropdownRef.current.parentElement!.getBoundingClientRect();
         const dropdownWidth = 256; // w-64
 
-        const tableContainerEl = dropdownRef.current.closest('.overflow-auto');
-        const tableLeftBoundary = tableContainerEl ? tableContainerEl.getBoundingClientRect().left : 0;
-        
-        if (rect.right - dropdownWidth < tableLeftBoundary) {
+        if (rect.right + dropdownWidth > window.innerWidth) {
             setIsLeftAligned(true);
         } else {
             setIsLeftAligned(false);
         }
     }
-    onToggle();
-  };
-  
+  }, [isOpen]);
+
   const handleCheckboxChange = (value: string | number | boolean | Date) => {
     const isCurrentlyFiltered = filter?.type === 'checkbox';
     const currentSelected = isCurrentlyFiltered ? filter.selected : uniqueValues;
@@ -119,65 +103,57 @@ const FilterDropdown: React.FC<FilterDropdownProps> = ({
       };
     }
   }, [isOpen]);
-
-  const hasActiveFilter = filter && (
-    (filter.type === 'checkbox' && filter.selected.length < uniqueValues.length) ||
-    (filter.type === 'text' && filter.value.length > 0)
-  );
+  
+  if (!isOpen) {
+    return null;
+  }
 
   return (
-    <div className="relative flex items-center" ref={dropdownRef}>
-      <button 
-        onClick={handleButtonClick}
-        className={`h-full flex items-center px-4 transition-colors ${hasActiveFilter ? 'text-blue-600 bg-blue-100' : 'text-gray-500 hover:bg-gray-200'}`}
-      >
-        <FilterIcon />
-      </button>
-
-      {isOpen && !isTextFilter && (
-        <div className={`absolute top-full ${isLeftAligned ? 'left-0' : 'right-0'} mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-xl z-50 flex flex-col`} onClick={e => e.stopPropagation()}>
-          <div className="flex-grow">
-            <div className="max-h-60 overflow-y-auto p-2 text-sm" ref={scrollableContainerRef}>
-              {uniqueValues.map((value, index) => {
-                const isChecked = filter?.type === 'checkbox' ? filter.selected.some(v => areValuesEqual(v, value)) : true;
-                return (
-                  <label key={index} className="flex items-center p-1 rounded hover:bg-gray-100 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      className="form-checkbox h-4 w-4 bg-gray-100 border-gray-300 text-blue-600 rounded focus:ring-blue-500 focus:ring-offset-0"
-                      checked={isChecked}
-                      onChange={() => handleCheckboxChange(value)}
-                    />
-                    <span className="ml-2 text-gray-800 truncate">{String(value)}</span>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-          <div className="flex justify-between items-center p-2 border-t border-gray-200 bg-gray-50 rounded-b-lg">
-            <div className="flex items-center gap-2">
-                <button
-                    onClick={handleSelectAll}
-                    className="px-3 py-1 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 transition-colors"
-                >
-                    All
-                </button>
-                <button
-                    onClick={handleClearAll}
-                    className="px-3 py-1 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 transition-colors"
-                >
-                    Clear
-                </button>
-            </div>
-            <button
-                onClick={onClose}
-                className="px-4 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-                Close
-            </button>
-          </div>
+    <div 
+        ref={dropdownRef}
+        className={`absolute top-full ${isLeftAligned ? 'right-0' : 'left-0'} mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-xl z-50 flex flex-col`} 
+        onClick={e => e.stopPropagation()}
+    >
+        <div className="flex-grow">
+        <div className="max-h-60 overflow-y-auto p-2 text-sm" ref={scrollableContainerRef}>
+            {uniqueValues.map((value, index) => {
+            const isChecked = filter?.type === 'checkbox' ? filter.selected.some(v => areValuesEqual(v, value)) : true;
+            return (
+                <label key={index} className="flex items-center p-1 rounded hover:bg-gray-100 cursor-pointer">
+                <input
+                    type="checkbox"
+                    className="form-checkbox h-4 w-4 bg-gray-100 border-gray-300 text-blue-600 rounded focus:ring-blue-500 focus:ring-offset-0"
+                    checked={isChecked}
+                    onChange={() => handleCheckboxChange(value)}
+                />
+                <span className="ml-2 text-gray-800 truncate">{String(value)}</span>
+                </label>
+            );
+            })}
         </div>
-      )}
+        </div>
+        <div className="flex justify-between items-center p-2 border-t border-gray-200 bg-gray-50 rounded-b-lg">
+        <div className="flex items-center gap-2">
+            <button
+                onClick={handleSelectAll}
+                className="px-3 py-1 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 transition-colors"
+            >
+                All
+            </button>
+            <button
+                onClick={handleClearAll}
+                className="px-3 py-1 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 transition-colors"
+            >
+                Clear
+            </button>
+        </div>
+        <button
+            onClick={onClose}
+            className="px-4 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+        >
+            Close
+        </button>
+        </div>
     </div>
   );
 };
