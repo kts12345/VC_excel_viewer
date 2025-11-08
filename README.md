@@ -1,20 +1,54 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Excel & CSV Data Viewer
 
-# Run and deploy your AI Studio app
+이 프로젝트는 사용자가 Excel 또는 CSV 파일을 브라우저로 드래그 앤 드롭하여 데이터를 보고, 정렬하고, 필터링할 수 있는 대화형 데이터 뷰어 애플리케이션입니다.
 
-This contains everything you need to run your app locally.
+## 주요 기능
 
-View your app in AI Studio: https://ai.studio/apps/drive/1OW0aXSUDPjdF7q7UCnN9HuQwL-y0d9dm
+-   **드래그 앤 드롭**: 간편하게 파일을 끌어다 놓아 데이터를 로드합니다.
+-   **다중 파일 관리**: 여러 파일을 동시에 열고 목록에서 선택하여 확인합니다.
+-   **데이터 테이블 뷰**: 페이지네이션, 열 정렬, 고급 필터링(텍스트, 체크박스) 기능이 있는 강력한 테이블 뷰를 제공합니다.
+-   **동적 레이아웃**: 열 너비 조절, 열 순서 변경, 열 고정 등 사용자 맞춤형 뷰를 지원합니다.
+-   **서버 불필요**: 별도의 웹 서버 없이 로컬에서 바로 실행할 수 있습니다.
 
-## Run Locally
+---
 
-**Prerequisites:**  Node.js
+## 사용법
 
+이 애플리케이션은 두 가지 방법으로 사용할 수 있습니다.
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+### 섹션 1: 로컬 PC에서 바로 실행하는 방법
+
+별도의 설치 과정 없이 다운로드한 파일만으로 프로그램을 실행할 수 있습니다.
+
+1.  **파일 다운로드**: 아래 두 개의 파일을 다운로드하여 같은 폴더에 저장합니다.
+    *   `index.html`
+    *   `bundle.js`
+2.  **파일 열기**: 다운로드한 `index.html` 파일을 웹 브라우저(Chrome, Firefox, Edge 등)로 엽니다. 파일을 더블클릭하거나 브라우저 창으로 끌어다 놓으세요.
+
+이제 애플리케이션이 브라우저에서 바로 실행됩니다. Excel이나 CSV 파일을 창으로 끌어다 놓아 데이터를 확인해 보세요.
+
+### 섹션 2: 웹에 게시하여 공유하는 방법 (GitHub Pages 기준)
+
+이 애플리케이션을 웹에 게시하여 다른 사람들과 URL을 통해 공유할 수 있습니다. GitHub 계정이 필요합니다.
+
+1.  **새 GitHub 저장소 만들기**:
+    *   [GitHub](https://github.com/new)에 접속하여 새로운 저장소(Repository)를 만듭니다.
+    *   저장소 이름을 원하는 대로 지정합니다. (예: `my-data-viewer`)
+    *   **Public**으로 설정해야 GitHub Pages를 무료로 사용할 수 있습니다.
+    *   "Create repository" 버튼을 클릭합니다.
+
+2.  **파일 업로드**:
+    *   생성된 저장소 페이지에서 "Add file" → "Upload files"를 클릭합니다.
+    *   앞서 다운로드한 `index.html`과 `bundle.js` 두 파일을 업로드 영역으로 끌어다 놓거나 파일 선택기를 통해 선택합니다.
+    *   "Commit changes" 버튼을 클릭하여 파일 업로드를 완료합니다.
+
+3.  **GitHub Pages 설정**:
+    *   저장소 상단 메뉴에서 **[Settings]** 탭을 클릭합니다.
+    *   왼쪽 메뉴에서 **[Pages]**를 클릭합니다.
+    *   "Build and deployment" 섹션의 "Source"에서 **"Deploy from a branch"**를 선택합니다.
+    *   "Branch" 섹션에서 배포할 브랜치를 **`main`**으로, 폴더를 **`/(root)`**로 설정하고 "Save" 버튼을 클릭합니다.
+
+4.  **배포 확인 및 접속**:
+    *   페이지가 새로고침되며 상단에 "Your site is live at `https://<사용자이름>.github.io/<저장소이름>/`"과 같은 메시지가 나타납니다.
+    *   배포가 완료되기까지 1~2분 정도 소요될 수 있습니다.
+    *   생성된 URL을 클릭하여 웹에 게시된 애플리케이션에 접속하고 다른 사람들과 공유할 수 있습니다.
